@@ -28,7 +28,12 @@
   import { newerVersionWarning, serializeProject } from "../utils/project";
   import { downloadJson } from "../utils/download";
   import { stripPpExtension } from "../utils/filename";
-  import { FIELD_SIZE } from "../config";
+  import {
+    FIELD_SIZE,
+    getDefaultPaths,
+    getDefaultShapes,
+    getDefaultStartPoint,
+  } from "../config";
   import { showToast } from "./toast";
   import NameDialog from "./components/NameDialog.svelte";
   import FileListItem from "./components/FileListItem.svelte";
@@ -426,13 +431,20 @@
         }
       }
 
-      const normalizedLines = normalizePaths(lines);
+      // Always start from the default path template instead of copying
+      // whatever path is currently loaded/selected.
+      const defaultStartPoint = getDefaultStartPoint();
+      const defaultLines = normalizePaths(getDefaultPaths());
+      const defaultShapes = getDefaultShapes();
+      const defaultSequence = deriveSequence({}, defaultLines);
+      const defaultFieldPoints: FieldPoint[] = [];
+
       const content = serializeProject({
-        startPoint,
-        lines: normalizedLines,
-        shapes,
-        sequence,
-        fieldPoints,
+        startPoint: defaultStartPoint,
+        lines: defaultLines,
+        shapes: defaultShapes,
+        sequence: defaultSequence,
+        fieldPoints: defaultFieldPoints,
       });
 
       await browserFileStore.writeFile(filePath, content);
@@ -441,7 +453,13 @@
       newFileName = "";
       await refreshDirectory();
 
-      // Automatically "load" the new file into state
+      // Load the fresh default path into editor state
+      startPoint = defaultStartPoint;
+      lines = defaultLines;
+      shapes = defaultShapes;
+      sequence = defaultSequence;
+      fieldPoints = defaultFieldPoints;
+
       selectedFile = files.find((f) => f.name === fileName) || null;
       if (selectedFile) {
         currentFilePath.set(selectedFile.path);

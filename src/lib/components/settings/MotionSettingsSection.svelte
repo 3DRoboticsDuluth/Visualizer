@@ -1,10 +1,12 @@
 <script lang="ts">
   import type { Settings } from "../../../types";
+  import { DEFAULT_SETTINGS } from "../../../config/defaults";
   import NumberField from "../ui/NumberField.svelte";
   import {
     clampNumberInput,
     type NumericSettingKey,
   } from "../../settings/numericSetting";
+  import { showToast } from "../../toast";
 
   interface Props {
     settings: Settings;
@@ -28,6 +30,29 @@
   function setAngularVelocity(value: string) {
     const parsed = parseFloat(value);
     settings.aVelocity = (Number.isNaN(parsed) ? 0 : parsed) * Math.PI;
+  }
+
+  function resetMotionParameters() {
+    if (
+      !confirm(
+        "Reset motion parameters to defaults? Other settings will be left unchanged.",
+      )
+    ) {
+      return;
+    }
+
+    // Reassign so bind:settings propagates to the parent.
+    settings = {
+      ...settings,
+      xVelocity: DEFAULT_SETTINGS.xVelocity,
+      yVelocity: DEFAULT_SETTINGS.yVelocity,
+      aVelocity: DEFAULT_SETTINGS.aVelocity,
+      kFriction: DEFAULT_SETTINGS.kFriction,
+      maxVelocity: DEFAULT_SETTINGS.maxVelocity,
+      maxAcceleration: DEFAULT_SETTINGS.maxAcceleration,
+      maxDeceleration: DEFAULT_SETTINGS.maxDeceleration,
+    };
+    showToast("Motion parameters reset to defaults", "success");
   }
 </script>
 
@@ -105,4 +130,29 @@
     step={0.1}
     onInput={(v) => setNumber(v, "kFriction", 0)}
   />
+
+  <div class="pt-1">
+    <button
+      type="button"
+      onclick={resetMotionParameters}
+      class="px-3 py-1.5 text-sm bg-red-500/90 hover:bg-red-600 text-white rounded-md transition-colors flex items-center gap-2"
+      title="Reset motion parameters to default values"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width={2}
+        stroke="currentColor"
+        class="size-4"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+        />
+      </svg>
+      Reset Motion Parameters
+    </button>
+  </div>
 </div>
