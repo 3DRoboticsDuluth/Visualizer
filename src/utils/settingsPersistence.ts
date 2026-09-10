@@ -18,6 +18,8 @@ const SETTINGS_STORAGE_KEY = "pedro_settings";
  */
 export function normalizeLegacyFieldMap(input: Settings): Settings {
   const next = { ...input };
+  // Older saved projects used a root URL that breaks project-site hosting.
+  if (next.robotImage === "/robot.png") next.robotImage = "robot.png";
 
   if (
     typeof next.fieldMap === "string" &&

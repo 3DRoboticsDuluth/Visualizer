@@ -33,7 +33,7 @@
     onImageSettled = () => {},
   }: Props = $props();
 
-  const DEFAULT_ROBOT_IMAGE = "/robot.png";
+  const DEFAULT_ROBOT_IMAGE = "robot.png";
 
   let arrowLength = $derived(settings.headingArrowLength || 50);
   let arrowColor = $derived(settings.headingArrowColor || "#ffffff");

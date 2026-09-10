@@ -9,7 +9,7 @@
 
   let { settings = $bindable() }: Props = $props();
 
-  const DEFAULT_ROBOT_IMAGE = "/robot.png";
+  const DEFAULT_ROBOT_IMAGE = "robot.png";
   const POTATO_IMAGE = "/JefferyThePotato.png";
   const DUCK_IMAGE = "/MecanumDuck.png";
 

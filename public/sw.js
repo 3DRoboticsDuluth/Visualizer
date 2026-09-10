@@ -1,8 +1,9 @@
 // IMPORTANT: bump this whenever you ship a new build. The service worker uses
 // cache-first for the JS/CSS bundle, so a stale cache (same VERSION) will keep
 // serving the previous build forever. Bumping forces old caches to be purged.
-const VERSION = "v4";
-const CACHE_NAME = `pedro-visualizer-${VERSION}`;
+const VERSION = "pages-v1";
+const CACHE_PREFIX = `pedro-visualizer-${self.registration.scope}-`;
+const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 
 const APP_STATIC_RESOURCES = [
   "/",
@@ -18,14 +19,14 @@ const APP_STATIC_RESOURCES = [
   "/fonts/Poppins-SemiBold.ttf",
   "/fonts/Poppins-Light.ttf",
   "/fonts/Poppins-ExtraLight.ttf",
-];
+].map((path) => new URL(`.${path}`, self.registration.scope).href);
 
 // On install, cache the static resources
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      cache.addAll(APP_STATIC_RESOURCES);
+      await cache.addAll(APP_STATIC_RESOURCES);
     })(),
   );
 });
@@ -37,7 +38,7 @@ self.addEventListener("activate", (event) => {
       const names = await caches.keys();
       await Promise.all(
         names.map((name) => {
-          if (name !== CACHE_NAME) {
+          if (name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME) {
             return caches.delete(name);
           }
           return undefined;
@@ -51,6 +52,8 @@ self.addEventListener("activate", (event) => {
 // On fetch, intercept server requests
 // and respond with cached responses instead of going to network
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET" ||
+      !event.request.url.startsWith(self.registration.scope)) return;
   // As a single page app, direct app navigation to cached home page when offline.
   if (event.request.mode === "navigate") {
     event.respondWith(
@@ -59,7 +62,7 @@ self.addEventListener("fetch", (event) => {
           return await fetch(event.request);
         } catch (error) {
           const cache = await caches.open(CACHE_NAME);
-          const fallback = await cache.match("/");
+          const fallback = await cache.match(self.registration.scope);
           return fallback || new Response("Offline", { status: 503 });
         }
       })(),

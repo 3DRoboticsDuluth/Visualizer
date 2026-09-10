@@ -915,12 +915,12 @@
       const loadImage = createImageLoader();
 
       const fieldImage = await loadImage(fieldMapSrc).catch(async () => {
-        return loadImage("/fields/decode.webp");
+        return loadImage("fields/decode.webp");
       });
       const robotImage = await loadImage(
-        settings.robotImage || "/robot.png",
+        settings.robotImage || "robot.png",
       ).catch(async () => {
-        return loadImage("/robot.png");
+        return loadImage("robot.png");
       });
 
       const drawRobot = createRobotDrawer(
@@ -2037,10 +2037,10 @@
   let robotHeight = $derived(settings?.rHeight || DEFAULT_ROBOT_HEIGHT);
   let fieldMapSrc = $derived(
     settings.fieldMap === "custom"
-      ? settings.customFieldImage || "/fields/decode.webp"
+      ? settings.customFieldImage || "fields/decode.webp"
       : settings.fieldMap
-        ? `/fields/${settings.fieldMap}`
-        : "/fields/decode.webp",
+        ? `fields/${settings.fieldMap}`
+        : "fields/decode.webp",
   );
   let fieldPixelSize = $derived(
     Math.max(
@@ -2060,9 +2060,9 @@
     }
   });
   run(() => {
-    if ((settings.robotImage || "/robot.png") !== lastRobotImageSrc) {
+    if ((settings.robotImage || "robot.png") !== lastRobotImageSrc) {
       robotImageLoaded = false;
-      lastRobotImageSrc = settings.robotImage || "/robot.png";
+      lastRobotImageSrc = settings.robotImage || "robot.png";
     }
   });
   let initialAssetsReady = $derived(fieldMapLoaded && robotImageLoaded);

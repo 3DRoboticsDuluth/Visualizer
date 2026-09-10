@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxAcceleration: 30,
   maxDeceleration: 30,
   fieldMap: "decode.webp",
-  robotImage: "/robot.png",
+  robotImage: "robot.png",
   showGhostPaths: false,
   showOnionLayers: false,
   onionLayerSpacing: 3, // inches between each robot body trace

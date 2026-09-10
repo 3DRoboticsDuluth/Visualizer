@@ -7,7 +7,7 @@
 
   let { src, fieldMapName, onSettled = () => {} }: Props = $props();
 
-  const FALLBACK_FIELD_MAP = "/fields/decode.webp";
+  const FALLBACK_FIELD_MAP = "fields/decode.webp";
 </script>
 
 <img

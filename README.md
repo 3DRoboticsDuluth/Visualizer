@@ -2,6 +2,17 @@
 
 This 3D Robotics Duluth fork adds selectable coordinate frames and tile units to the upstream Pedro Pathing Visualizer.
 
+**[Open the Hosted Visualizer](https://3droboticsduluth.github.io/Visualizer/)**
+
+## Hosting
+
+GitHub Actions tests, type-checks, builds, and publishes `main` to GitHub Pages.
+Pull requests run verification without deploying. Repository Settings → Pages
+must use **GitHub Actions** as its source. No hosting credentials are required.
+Assets and the offline cache are scoped to the application path so this also
+works locally or on a custom domain. Each deployment versions its offline cache;
+close older open tabs and reopen the site if an installed copy has not updated.
+
 ## Plan in FTC Coordinates
 
 Open **Settings → Coordinates and Units**. Select Pedro, FTC, or FTC Inverted, then Inches or Tiles. The field image remains fixed:
