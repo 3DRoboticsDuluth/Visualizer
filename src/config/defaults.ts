@@ -1,5 +1,5 @@
-import type { Point, Line, Shape, Settings } from "../types";
-import { getRandomColor } from "../utils";
+import type { StartPose, AtomicPath, Shape, Settings } from "../types";
+import { makePathId } from "../utils/ids";
 
 /**
  * Default robot dimensions
@@ -40,29 +40,36 @@ export const DEFAULT_SETTINGS: Settings = {
   maxDeceleration: 30,
   fieldMap: "decode.webp",
   robotImage: "/robot.png",
-  theme: "auto",
   showGhostPaths: false,
   showOnionLayers: false,
   onionLayerSpacing: 3, // inches between each robot body trace
   onionColor: "#dc2626",
   onionNextPointOnly: false,
   showHeadingArrow: false,
+  showCurrentTValue: false,
+  leftPanelWidth: 370,
+  rightPanelWidth: 620,
   headingArrowLength: 50,
   headingArrowColor: "#ffffff",
   headingArrowThickness: 2,
   pathOpacity: 1,
+  leftPanelMinWidth: 0,
+  rightPanelMinWidth: 0,
+  penToolMaxPaths: 8,
+  experimentalFeatures: {
+    optimize: false,
+    curveThrough: false,
+  },
 };
 
 /**
  * Get default starting point
  */
-export function getDefaultStartPoint(): Point {
+export function getDefaultStartPoint(): StartPose {
   return {
     x: 56,
     y: 8,
-    heading: "linear",
-    startDeg: 90,
-    endDeg: 180,
+    headingDeg: 90,
     locked: false,
   };
 }
@@ -70,13 +77,15 @@ export function getDefaultStartPoint(): Point {
 /**
  * Get default initial path lines
  */
-export function getDefaultLines(): Line[] {
+export function getDefaultPaths(): AtomicPath[] {
   return [
     {
-      id: `line-${Math.random().toString(36).slice(2)}`,
+      kind: "atomic",
+      id: makePathId(),
       name: "Path 1",
-      endPoint: { x: 56, y: 36, heading: "linear", startDeg: 90, endDeg: 180 },
+      endPoint: { x: 56, y: 36 },
       controlPoints: [],
+      heading: { type: "linear", startDeg: 90, endDeg: 180 },
       color: "#ffc516",
       locked: false,
       waitBeforeMs: 0,
@@ -98,9 +107,9 @@ export function getDefaultShapes(): Shape[] {
       vertices: [
         { x: 141.5, y: 70 },
         { x: 141.5, y: 141.5 },
-        { x: 120, y: 141.5 },
-        { x: 138, y: 119 },
-        { x: 138, y: 70 },
+        { x: 118.3, y: 141.5 },
+        { x: 135.5, y: 118 },
+        { x: 136.3, y: 70.2 },
       ],
       color: "#dc2626",
       fillColor: "#ff6b6b",
@@ -109,7 +118,7 @@ export function getDefaultShapes(): Shape[] {
       id: "triangle-2",
       name: "Blue Goal",
       vertices: [
-        { x: 6, y: 119 },
+        { x: 6.2, y: 116.9 },
         { x: 25, y: 141.5 },
         { x: 0, y: 141.5 },
         { x: 0, y: 70 },

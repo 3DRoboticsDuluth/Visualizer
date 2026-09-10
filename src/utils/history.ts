@@ -1,13 +1,20 @@
-import type { Point, Line, Shape, SequenceItem, Settings, PathChain } from "../types";
+import type {
+  FieldPoint,
+  Path,
+  Shape,
+  SequenceItem,
+  Settings,
+  StartPose,
+} from "../types";
 import { writable } from "svelte/store";
 
 export type AppState = {
-  startPoint: Point;
-  lines: Line[];
+  startPoint: StartPose;
+  lines: Path[];
   shapes: Shape[];
   sequence: SequenceItem[];
   settings: Settings;
-  pathChains: PathChain[];
+  fieldPoints: FieldPoint[];
 };
 
 function deepClone<T>(obj: T): T {
@@ -15,7 +22,7 @@ function deepClone<T>(obj: T): T {
 }
 
 export function createHistory(maxSize = 200) {
-  let undoStack: AppState[] = [];
+  const undoStack: AppState[] = [];
   let redoStack: AppState[] = [];
   let lastHash = "";
 

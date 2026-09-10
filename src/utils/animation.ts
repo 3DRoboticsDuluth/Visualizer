@@ -5,13 +5,32 @@ import {
   radiansToDegrees,
 } from "./math";
 import { getRobotCorners } from "./geometry";
-import type { Point, Line, TimelineEvent, BasePoint, Settings } from "../types";
+import { evaluatePiecewiseHeading } from "./headingInterpolation";
+import {
+  CURVE_SAMPLES,
+  approximateCurveLength,
+  curveCompletionAt,
+  effectiveHeadingAt,
+  flattenToAtomicSegments,
+  type FlatSegment,
+  getPointAndTangentAtProgress,
+  lineCurvePoints,
+} from "./pathTraversal";
+import type {
+  AtomicPath,
+  Path,
+  TimelineEvent,
+  BasePoint,
+  Settings,
+  StartPose,
+} from "../types";
 import type { ScaleLinear } from "d3";
 
 export interface RobotState {
   x: number;
   y: number;
   heading: number;
+  t?: number | null;
 }
 
 type AnimationState = {
@@ -25,19 +44,67 @@ type AnimationState = {
 };
 
 /**
+ * Memoization for per-segment curve geometry.
+ *
+ * `calculateRobotState` is called on every animation frame, and each call used
+ * to re-sample the bezier curve (100 recursive evaluations) just to recover the
+ * curve's arc length. Since the geometry of a segment only changes when the
+ * user edits the path, we cache the sampled points + length keyed by the exact
+ * coordinates of the segment. This eliminates ~100 bezier evaluations per robot
+ * per frame while staying correct after edits (a coordinate change produces a
+ * different key).
+ */
+const curveGeometryCache = new Map<
+  string,
+  { points: BasePoint[]; length: number }
+>();
+const CURVE_CACHE_LIMIT = 1024;
+
+function getCurveGeometry(
+  start: BasePoint,
+  line: AtomicPath,
+): { points: BasePoint[]; length: number } {
+  const end = line.endPoint;
+  const cps = line.controlPoints;
+
+  let key = start.x.toFixed(3) + "," + start.y.toFixed(3);
+  for (let i = 0; i < cps.length; i++) {
+    key += ";" + cps[i].x.toFixed(3) + "," + cps[i].y.toFixed(3);
+  }
+  key += ";" + end.x.toFixed(3) + "," + end.y.toFixed(3);
+
+  const cached = curveGeometryCache.get(key);
+  if (cached) return cached;
+
+  const points = lineCurvePoints(start, line);
+  const value = { points, length: approximateCurveLength(points) };
+
+  if (curveGeometryCache.size >= CURVE_CACHE_LIMIT) {
+    curveGeometryCache.clear();
+  }
+  curveGeometryCache.set(key, value);
+  return value;
+}
+
+/**
  * Calculate the robot position and heading based on the Timeline
  */
 export function calculateRobotState(
   percent: number,
   timeline: TimelineEvent[],
-  lines: Line[],
-  startPoint: Point,
+  lines: Path[],
+  startPoint: StartPose,
   settings: Settings,
   xScale: ScaleLinear<number, number>,
   yScale: ScaleLinear<number, number>,
 ): RobotState {
   if (!timeline || timeline.length === 0) {
-    return { x: xScale(startPoint.x), y: yScale(startPoint.y), heading: 0 };
+    return {
+      x: xScale(startPoint.x),
+      y: yScale(startPoint.y),
+      heading: 0,
+      t: null,
+    };
   }
 
   // Calculate current time in seconds based on percent (0-100)
@@ -71,36 +138,29 @@ export function calculateRobotState(
       x: xScale(point.x),
       y: yScale(point.y),
       heading: -currentHeading,
+      t: null,
     };
   } else {
     // --- MOVEMENT TRAVEL ---
-    const lineIdx = activeEvent.lineIndex!;
-    const currentLine = lines[lineIdx];
-    const prevPoint = lineIdx === 0 ? startPoint : lines[lineIdx - 1].endPoint;
+    const pathSegments = flattenToAtomicSegments(startPoint, lines);
+    const segment = pathSegments.find(
+      (entry) => entry.line.id === activeEvent.lineId,
+    );
+    if (!segment) {
+      return { x: xScale(startPoint.x), y: yScale(startPoint.y), heading: 0 };
+    }
+    const currentLine = segment.line;
+    const prevPoint = segment.start;
 
     // Calculate progress (in seconds) within this specific travel event
     const timeIntoEvent = currentSeconds - activeEvent.startTime;
 
     // Determine fraction along the path using motion profile when available
-    let linePercent = 0;
-    const curvePoints = [prevPoint, ...currentLine.controlPoints, currentLine.endPoint];
-
-    // Helper: approximate curve length by sampling
-    function calculateCurveLength(start: BasePoint, controlPoints: BasePoint[], end: BasePoint, samples = 100) {
-      let length = 0;
-      let prev = start;
-      for (let i = 1; i <= samples; i++) {
-        const t = i / samples;
-        const p = getCurvePoint(t, [start, ...controlPoints, end]);
-        const dx = p.x - prev.x;
-        const dy = p.y - prev.y;
-        length += Math.sqrt(dx * dx + dy * dy);
-        prev = p;
-      }
-      return length;
-    }
-
-    const segLength = calculateCurveLength(prevPoint as BasePoint, currentLine.controlPoints as BasePoint[], currentLine.endPoint as BasePoint);
+    let linePercent: number;
+    const { points: curvePoints, length: segLength } = getCurveGeometry(
+      prevPoint,
+      currentLine,
+    );
 
     // If settings provide a motion profile, compute distance fraction accordingly
     if (
@@ -118,7 +178,7 @@ export function calculateRobotState(
       const accDist = 0.5 * maxA * accTime * accTime;
       const decDist = 0.5 * maxD * decTime * decTime;
 
-      let constTime = 0;
+      let constTime: number;
       let constDist = 0;
       let totalTime = 0;
 
@@ -138,10 +198,11 @@ export function calculateRobotState(
       // Clamp timeIntoEvent to event duration
       const t = Math.max(0, Math.min(timeIntoEvent, activeEvent.duration));
 
-      // Compute distance traveled at time t
+      // Compute distance traveled at time t. A zero-length segment leaves this
+      // at 0, which the fraction below turns into 0 anyway.
       let dist = 0;
       if (segLength === 0) {
-        linePercent = 0;
+        // nothing to travel
       } else if (segLength >= accDist + decDist) {
         if (t <= accTime) {
           dist = 0.5 * maxA * t * t;
@@ -159,7 +220,8 @@ export function calculateRobotState(
           dist = 0.5 * maxA * t * t;
         } else {
           const rem = t - accT;
-          dist = 0.5 * maxA * accT * accT + vPeak * rem - 0.5 * maxD * rem * rem;
+          dist =
+            0.5 * maxA * accT * accT + vPeak * rem - 0.5 * maxD * rem * rem;
         }
       }
 
@@ -176,43 +238,68 @@ export function calculateRobotState(
     const robotXY = { x: xScale(robotInchesXY.x), y: yScale(robotInchesXY.y) };
     let robotHeading = 0;
 
-    // Calculate Heading based on Line Type
-    switch (currentLine.endPoint.heading) {
-      case "linear":
-        robotHeading = -shortestRotation(
-          currentLine.endPoint.startDeg,
-          currentLine.endPoint.endDeg,
-          linePercent,
-        );
-        break;
-      case "constant":
-        robotHeading = -currentLine.endPoint.degrees;
-        break;
-      case "tangential":
-        const nextPointInches = getCurvePoint(
-          linePercent + (currentLine.endPoint.reverse ? -0.01 : 0.01),
-          [prevPoint, ...currentLine.controlPoints, currentLine.endPoint],
-        );
-        const nextPoint = {
-          x: xScale(nextPointInches.x),
-          y: yScale(nextPointInches.y),
-        };
-        const dx = nextPoint.x - robotXY.x;
-        const dy = nextPoint.y - robotXY.y;
+    // A group's heading replaces its children's and is measured across the
+    // whole group, so both the rule and its t come from there.
+    const effective = effectiveHeadingAt(
+      pathSegments,
+      segment.index,
+      linePercent,
+    );
+    const lineHeading = effective.heading;
+    const headingT = effective.t;
+    const lineTraversal = getPointAndTangentAtProgress(
+      curvePoints as BasePoint[],
+      linePercent,
+      lineHeading.type === "tangential" ? lineHeading.reverse : undefined,
+    );
 
-        if (dx !== 0 || dy !== 0) {
-          // atan2 returns angle in pixels (Y is down), so -90 is Up.
-          // This matches the -heading logic used elsewhere.
-          const angle = Math.atan2(dy, dx);
-          robotHeading = radiansToDegrees(angle);
+    // Calculate Heading based on Line Type
+    if (lineHeading.type === "piecewise") {
+      robotHeading = -evaluatePiecewiseHeading(
+        lineHeading.piecewiseHeading,
+        headingT,
+        { ...lineTraversal, curvePoints: curvePoints as BasePoint[] },
+      );
+    } else {
+      switch (lineHeading.type) {
+        case "linear":
+          robotHeading = -shortestRotation(
+            lineHeading.startDeg,
+            lineHeading.endDeg,
+            headingT,
+          );
+          break;
+        case "constant":
+          robotHeading = -lineHeading.degrees;
+          break;
+        case "tangential": {
+          const nextPointInches = getCurvePoint(
+            linePercent + (lineHeading.reverse ? -0.01 : 0.01),
+            curvePoints,
+          );
+          const nextPoint = {
+            x: xScale(nextPointInches.x),
+            y: yScale(nextPointInches.y),
+          };
+          const dx = nextPoint.x - robotXY.x;
+          const dy = nextPoint.y - robotXY.y;
+
+          if (dx !== 0 || dy !== 0) {
+            // atan2 returns angle in pixels (Y is down), so -90 is Up.
+            // This matches the -heading logic used elsewhere.
+            const angle = Math.atan2(dy, dx);
+            robotHeading = radiansToDegrees(angle);
+          }
+          break;
         }
-        break;
+      }
     }
 
     return {
       x: robotXY.x,
       y: robotXY.y,
       heading: robotHeading,
+      t: linePercent,
     };
   }
 }
@@ -410,6 +497,40 @@ export function createAnimationController(
 }
 
 /**
+ * The robot's heading part-way along one segment, in field degrees (CCW from
+ * +x, measured in inches space).
+ */
+function segmentHeadingAt(
+  segments: FlatSegment[],
+  index: number,
+  localT: number,
+): number {
+  const curvePoints = segments[index].points;
+  const completion = curveCompletionAt(curvePoints, localT);
+  // A group's heading replaces its children's and spans the whole group, so
+  // both the rule and the t to read it at come from there.
+  const { heading, t } = effectiveHeadingAt(segments, index, completion);
+
+  switch (heading.type) {
+    case "linear":
+      return shortestRotation(heading.startDeg, heading.endDeg, t);
+    case "constant":
+      return heading.degrees;
+    case "tangential":
+      // The tangent is a property of the curve under the robot, so this stays
+      // on the segment's own geometry even inside a group.
+      return getPointAndTangentAtProgress(curvePoints, localT, heading.reverse)
+        .tangentDegrees;
+    case "piecewise": {
+      return evaluatePiecewiseHeading(heading.piecewiseHeading, t, {
+        ...getPointAndTangentAtProgress(curvePoints, localT),
+        curvePoints,
+      });
+    }
+  }
+}
+
+/**
  * Generate ghost path points that trace the robot's body along its path
  * Creates swept area by connecting consecutive robot corners properly
  * @param startPoint - The starting point of the path
@@ -420,8 +541,8 @@ export function createAnimationController(
  * @returns Array of points forming the boundary of the robot's swept path
  */
 export function generateGhostPathPoints(
-  startPoint: Point,
-  lines: Line[],
+  startPoint: StartPose,
+  lines: Path[],
   robotWidth: number,
   robotHeight: number,
   samples: number = 200, // Higher default for smoother turns
@@ -436,43 +557,15 @@ export function generateGhostPathPoints(
     right: BasePoint;
   }> = [];
 
-  let currentLineStart = startPoint;
-
   // For each line segment
-  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx];
-    const curvePoints = [
-      currentLineStart,
-      ...line.controlPoints,
-      line.endPoint,
-    ];
-
+  const pathSegments = flattenToAtomicSegments(startPoint, lines);
+  for (const { index, points: curvePoints } of pathSegments) {
     // Sample along this line segment with a minimum to better capture curves
     const samplesPerLine = Math.max(10, Math.ceil(samples / lines.length));
     for (let i = 0; i <= samplesPerLine; i++) {
       const t = i / samplesPerLine;
       const robotPosInches = getCurvePoint(t, curvePoints);
-
-      // Calculate heading at this position
-      let heading = 0;
-      if (line.endPoint.heading === "linear") {
-        heading = shortestRotation(
-          line.endPoint.startDeg,
-          line.endPoint.endDeg,
-          t,
-        );
-      } else if (line.endPoint.heading === "constant") {
-        heading = line.endPoint.degrees;
-      } else if (line.endPoint.heading === "tangential") {
-        // Calculate tangent direction
-        const nextT = Math.min(t + 0.01, 1);
-        const nextPos = getCurvePoint(nextT, curvePoints);
-        const dx = nextPos.x - robotPosInches.x;
-        const dy = nextPos.y - robotPosInches.y;
-        if (dx !== 0 || dy !== 0) {
-          heading = radiansToDegrees(Math.atan2(dy, dx));
-        }
-      }
+      const heading = segmentHeadingAt(pathSegments, index, t);
 
       // Build left/right rails directly from center + normal offsets
       const headingRad = (heading * Math.PI) / 180;
@@ -496,8 +589,6 @@ export function generateGhostPathPoints(
         right: rightPoint,
       });
     }
-
-    currentLineStart = line.endPoint;
   }
 
   if (robotStates.length === 0) return [];
@@ -587,12 +678,18 @@ export function generateGhostPathPoints(
  * @returns Array of robot states with corner points for rendering
  */
 export function generateOnionLayers(
-  startPoint: Point,
-  lines: Line[],
+  startPoint: StartPose,
+  lines: Path[],
   robotWidth: number,
   robotHeight: number,
   spacing: number = 6,
-): Array<{ x: number; y: number; heading: number; corners: BasePoint[]; lineIndex: number }> {
+): Array<{
+  x: number;
+  y: number;
+  heading: number;
+  corners: BasePoint[];
+  lineId: string;
+}> {
   if (lines.length === 0) return [];
 
   const layers: Array<{
@@ -600,59 +697,26 @@ export function generateOnionLayers(
     y: number;
     heading: number;
     corners: BasePoint[];
+    lineId: string;
   }> = [];
 
   // Calculate total path length
-  let totalLength = 0;
-  let currentLineStart = startPoint;
-
-  for (let li = 0; li < lines.length; li++) {
-    const line = lines[li];
-    const curvePoints = [
-      currentLineStart,
-      ...line.controlPoints,
-      line.endPoint,
-    ];
-
-    // Approximate line length by sampling
-    const samples = 100;
-    let lineLength = 0;
-    let prevPos = curvePoints[0];
-
-    for (let i = 1; i <= samples; i++) {
-      const t = i / samples;
-      const pos = getCurvePoint(t, curvePoints);
-      const dx = pos.x - prevPos.x;
-      const dy = pos.y - prevPos.y;
-      lineLength += Math.sqrt(dx * dx + dy * dy);
-      prevPos = pos;
-    }
-
-    totalLength += lineLength;
-    currentLineStart = line.endPoint;
-  }
-
-  // Calculate number of layers based on spacing
-  const numLayers = Math.max(1, Math.floor(totalLength / spacing));
+  const segments = flattenToAtomicSegments(startPoint, lines);
+  const totalLength = segments.reduce(
+    (sum, segment) => sum + segment.arcLength,
+    0,
+  );
 
   // Sample robot positions at regular intervals
-  currentLineStart = startPoint;
   let accumulatedLength = 0;
   let nextLayerDistance = spacing;
 
-  for (let li = 0; li < lines.length; li++) {
-    const line = lines[li];
-    const curvePoints = [
-      currentLineStart,
-      ...line.controlPoints,
-      line.endPoint,
-    ];
-    const samples = 100;
+  for (const { line, index: li, points: curvePoints } of segments) {
     let prevPos = curvePoints[0];
     let prevT = 0;
 
-    for (let i = 1; i <= samples; i++) {
-      const t = i / samples;
+    for (let i = 1; i <= CURVE_SAMPLES; i++) {
+      const t = i / CURVE_SAMPLES;
       const pos = getCurvePoint(t, curvePoints);
       const dx = pos.x - prevPos.x;
       const dy = pos.y - prevPos.y;
@@ -670,30 +734,7 @@ export function generateOnionLayers(
         const interpolationT = 1 - overshoot / segmentLength;
         const layerT = prevT + (t - prevT) * interpolationT;
         const robotPosInches = getCurvePoint(layerT, curvePoints);
-
-        // Calculate heading for this position
-        let heading = 0;
-        if (line.endPoint.heading === "linear") {
-          heading = shortestRotation(
-            line.endPoint.startDeg,
-            line.endPoint.endDeg,
-            layerT,
-          );
-        } else if (line.endPoint.heading === "constant") {
-          heading = -line.endPoint.degrees;
-        } else if (line.endPoint.heading === "tangential") {
-          // Calculate tangent direction
-          const nextT = Math.min(
-            layerT + (line.endPoint.reverse ? -0.01 : 0.01),
-            1,
-          );
-          const nextPos = getCurvePoint(nextT, curvePoints);
-          const tdx = nextPos.x - robotPosInches.x;
-          const tdy = nextPos.y - robotPosInches.y;
-          if (tdx !== 0 || tdy !== 0) {
-            heading = radiansToDegrees(Math.atan2(tdy, tdx));
-          }
-        }
+        const heading = segmentHeadingAt(segments, li, layerT);
 
         // Get robot corners for this position
         const corners = getRobotCorners(
@@ -709,7 +750,7 @@ export function generateOnionLayers(
           y: robotPosInches.y,
           heading: heading,
           corners: corners,
-          lineIndex: li,
+          lineId: line.id,
         });
 
         nextLayerDistance += spacing;
@@ -718,8 +759,6 @@ export function generateOnionLayers(
       prevPos = pos;
       prevT = t;
     }
-
-    currentLineStart = line.endPoint;
   }
 
   return layers;

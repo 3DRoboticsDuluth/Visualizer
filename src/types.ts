@@ -6,33 +6,50 @@ export interface BasePoint {
   locked?: boolean;
 }
 
-export type Point = BasePoint &
-  (
-    | {
-        heading: "linear";
-        startDeg: number;
-        endDeg: number;
-        degrees?: never;
-        reverse?: never;
-      }
-    | {
-        heading: "constant";
-        degrees: number;
-        startDeg?: never;
-        endDeg?: never;
-        reverse?: never;
-      }
-    | {
-        heading: "tangential";
-        degrees?: never;
-        startDeg?: never;
-        endDeg?: never;
-        reverse: boolean;
-      }
-  );
+export type PiecewiseHeadingInterpolationType =
+  "linear" | "constant" | "tangential" | "facing-point";
+
+export interface PiecewiseHeadingSegment {
+  startProgress: number;
+  endProgress: number;
+  interpolationType: PiecewiseHeadingInterpolationType;
+  reversed?: boolean;
+  /** Take the start angle from where the previous segment ends. Linear and constant only. */
+  continueFromPrevious?: boolean;
+  parameters?: {
+    startDeg?: number;
+    endDeg?: number;
+    degrees?: number;
+    point?: BasePoint;
+  };
+}
+
+export interface PiecewiseHeadingInterpolation {
+  segments: PiecewiseHeadingSegment[];
+}
+
+export interface FieldPoint extends BasePoint {
+  color?: string;
+  radius?: number;
+  opacity?: number;
+}
+
+export type HeadingType = "linear" | "constant" | "tangential" | "piecewise";
+
+export type Heading =
+  | { type: "linear"; startDeg: number; endDeg: number }
+  | { type: "constant"; degrees: number }
+  | { type: "tangential"; reverse: boolean }
+  | { type: "piecewise"; piecewiseHeading: PiecewiseHeadingInterpolation };
+
+export type Point = BasePoint & { name?: string };
+
+export interface StartPose extends BasePoint {
+  name?: string;
+  headingDeg: number;
+}
 
 export type ControlPoint = BasePoint;
-
 
 export interface WaitSegment {
   name?: string;
@@ -40,10 +57,8 @@ export interface WaitSegment {
   position?: "before" | "after";
 }
 
-export interface Line {
-  id?: string;
-  endPoint: Point;
-  controlPoints: ControlPoint[];
+export type Path = {
+  id: string;
   color: string;
   name?: string;
   locked?: boolean;
@@ -53,7 +68,32 @@ export interface Line {
   waitAfterMs?: number;
   waitBeforeName?: string;
   waitAfterName?: string;
+} & (Atomic | Compound);
+
+export interface Atomic {
+  kind: "atomic";
+  endPoint: Point;
+  controlPoints: ControlPoint[];
+  heading: Heading;
 }
+
+export type AtomicPath = Extract<Path, Atomic>;
+
+export interface Compound {
+  kind: "compound";
+  segments: Path[];
+  heading?: Heading;
+}
+
+export type CompoundPath = Extract<Path, Compound>;
+
+export type PathListItem = {
+  id: string;
+  name: string;
+} & (
+  | { kind: "atomic"; x: string; y: string; children?: never }
+  | { kind: "compound"; children: PathListItem[]; x?: never; y?: never }
+);
 
 export type SequencePathItem = {
   kind: "path";
@@ -70,13 +110,6 @@ export type SequenceWaitItem = {
 
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
 
-export interface PathChain {
-  id: string;
-  name: string;
-  color: string;
-  lineIds: string[];
-}
-
 export interface Settings {
   xVelocity: number;
   yVelocity: number;
@@ -91,17 +124,27 @@ export interface Settings {
   fieldMap: string;
   customFieldImage?: string; // Base64 data URL for custom field image
   robotImage?: string;
-  theme: "light" | "dark" | "auto";
   showGhostPaths?: boolean; // Show collision overlays via ghost paths
   showOnionLayers?: boolean; // Show robot body at intervals along the path
   onionLayerSpacing?: number; // Distance in inches between onion layers
   onionColor?: string; // Color for onion-layer colliders
   onionNextPointOnly?: boolean; // When true, onion layers show only for the next point (UI-only for now)
   showHeadingArrow?: boolean; // Show arrow indicating robot heading direction
+  showCurrentTValue?: boolean; // Show the current path t value near the robot
+  leftPanelWidth?: number; // Width of the left sidebar in pixels
+  rightPanelWidth?: number; // Width of the right sidebar in pixels
   headingArrowLength?: number; // Length of the heading arrow in pixels
   headingArrowColor?: string; // Color of the heading arrow
   headingArrowThickness?: number; // Thickness/stroke width of the heading arrow
   pathOpacity?: number; // Opacity of path lines (0-1)
+  leftPanelMinWidth?: number; // Minimum width of the left sidebar in pixels
+  rightPanelMinWidth?: number; // Minimum width of the right sidebar in pixels
+  penToolMaxPaths?: number; // Maximum number of paths a single pen stroke may create
+  experimentalFeatures?: {
+    optimize?: boolean;
+    curveThrough?: boolean;
+    obstacles?: boolean;
+  };
 }
 
 export interface Shape {
@@ -121,7 +164,7 @@ export interface TimelineEvent {
   endTime: number;
   name?: string;
   waitPosition?: "before" | "after";
-  lineIndex?: number; // for travel
+  lineId?: string; // for travel
   startHeading?: number;
   targetHeading?: number;
   atPoint?: BasePoint;

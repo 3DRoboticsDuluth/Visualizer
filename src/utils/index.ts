@@ -1,15 +1,49 @@
 export * from "./animation";
-export * from "./codeExporter";
-export * from "./draw";
+export * from "./color";
+export * from "./normalize";
+export * from "./project";
+export * from "./download";
+export * from "./filename";
 export * from "./file";
 export * from "./geometry";
 export * from "./gifExporter";
 export * from "./math";
 export * from "./shapes";
 export * from "./timeCalculator";
-export * from "./directorySettings";
 
-export const DPI = 96 / 5;
+export {
+  segmentSupportsReverse,
+  createDefaultPiecewiseSegment,
+  createDefaultPiecewiseHeadingInterpolation,
+  normalizePiecewiseHeadingInterpolation,
+  validatePiecewiseHeadingInterpolation,
+  degreesToRadians,
+  headingAngleAt,
+  evaluatePiecewiseHeading,
+  getLineStartHeading,
+  getLineEndHeading,
+} from "./headingInterpolation";
+export type { HeadingGeometry } from "./headingInterpolation";
 
-export const titleCase = (str: string) =>
-  `${str[0].toUpperCase()}${str.slice(1).toLowerCase()}`;
+export {
+  CURVE_SAMPLES,
+  lineCurvePoints,
+  approximateCurveLength,
+  curveCompletionAt,
+  getPointAndTangentAtProgress,
+  flattenToAtomicSegments,
+  segmentStartById,
+  atomicSegments,
+  findSegmentById,
+  findPathById,
+  locatePath,
+  groupPaths,
+  groupingProblem,
+  ungroupPath,
+  replaceSegment,
+  updatePath,
+  movePath,
+  pathContains,
+  reorderSequenceToMatch,
+} from "./pathTraversal";
+export type { FlatSegment } from "./pathTraversal";
