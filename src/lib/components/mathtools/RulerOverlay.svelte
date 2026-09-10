@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../../stores";
+  import { inchesPerUnit, unitLabel } from "../../../utils/coordinates";
   import { FIELD_SIZE } from "../../../config";
   import { clamp } from "../../../utils/math";
   import type * as d3 from "d3";
@@ -89,6 +91,7 @@
     class="fill-blue-600 dark:fill-blue-400 font-semibold pointer-events-none"
     text-anchor="middle"
   >
-    {rulerLength.toFixed(2)}"
+    {(rulerLength / inchesPerUnit($coordinateSettings)).toFixed(2)}
+    {unitLabel($coordinateSettings)}
   </text>
 </svg>

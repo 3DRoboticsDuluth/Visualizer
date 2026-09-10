@@ -1,4 +1,11 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../../stores";
+  import {
+    toDisplay,
+    gridOrigin,
+    gridSpacing,
+    unitLabel,
+  } from "../../../utils/coordinates";
   import { gridSize } from "../../../stores";
   import { FIELD_SIZE } from "../../../config";
   import type * as d3 from "d3";
@@ -10,12 +17,20 @@
 
   let { x, y }: Props = $props();
 
-  let spacing = $derived(Math.max(1, $gridSize || 12));
+  let spacing = $derived(
+    Math.max(0.5, gridSpacing($gridSize || 12, $coordinateSettings)),
+  );
 
   let gridPositions = $derived(
     (() => {
-      const positions: number[] = [];
-      for (let pos = 0; pos <= FIELD_SIZE; pos += spacing) {
+      const positions: number[] = [0];
+      const origin = gridOrigin($coordinateSettings);
+      const first = origin - Math.floor(origin / spacing) * spacing;
+      for (
+        let pos = first > 0.000001 ? first : spacing;
+        pos < FIELD_SIZE;
+        pos += spacing
+      ) {
         positions.push(Number(pos.toFixed(6)));
       }
       if (positions[positions.length - 1] !== FIELD_SIZE) {
@@ -39,9 +54,18 @@
           : "text-xs",
   );
 
-  function showsLabel(index: number, position: number): boolean {
+  function showsLabel(position: number): boolean {
     return (
-      index % labelInterval === 0 || position === 0 || position === FIELD_SIZE
+      Math.abs(
+        (position - gridOrigin($coordinateSettings)) / spacing / labelInterval -
+          Math.round(
+            (position - gridOrigin($coordinateSettings)) /
+              spacing /
+              labelInterval,
+          ),
+      ) < 0.00001 ||
+      position === 0 ||
+      position === FIELD_SIZE
     );
   }
 </script>
@@ -58,14 +82,26 @@
       stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
       opacity="0.3"
     />
-    {#if showsLabel(i, position)}
+    {#if showsLabel(position)}
       <text
         x={x(position)}
         y={y(0) + 15}
         class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
         text-anchor="middle"
       >
-        {position}"
+        {$coordinateSettings.coordinateSystem === "ftc" ||
+        $coordinateSettings.coordinateSystem === "ftc-inverted"
+          ? "Y"
+          : "X"}
+        {Number(
+          toDisplay({ x: position, y: 0 }, $coordinateSettings)[
+            $coordinateSettings.coordinateSystem === "ftc" ||
+            $coordinateSettings.coordinateSystem === "ftc-inverted"
+              ? "y"
+              : "x"
+          ].toFixed(2),
+        )}
+        {unitLabel($coordinateSettings)}
       </text>
     {/if}
   {/each}
@@ -81,14 +117,26 @@
       stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
       opacity="0.3"
     />
-    {#if showsLabel(i, position)}
+    {#if showsLabel(position)}
       <text
         x={x(0) - 5}
         y={y(position) + 4}
         class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
         text-anchor="end"
       >
-        {position}"
+        {$coordinateSettings.coordinateSystem === "ftc" ||
+        $coordinateSettings.coordinateSystem === "ftc-inverted"
+          ? "X"
+          : "Y"}
+        {Number(
+          toDisplay({ x: 0, y: position }, $coordinateSettings)[
+            $coordinateSettings.coordinateSystem === "ftc" ||
+            $coordinateSettings.coordinateSystem === "ftc-inverted"
+              ? "x"
+              : "y"
+          ].toFixed(2),
+        )}
+        {unitLabel($coordinateSettings)}
       </text>
     {/if}
   {/each}

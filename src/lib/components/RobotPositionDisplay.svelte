@@ -1,4 +1,10 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import {
+    toDisplay,
+    displayHeading,
+    unitLabel,
+  } from "../../utils/coordinates";
   import type { BasePoint } from "../../types";
   import type * as d3 from "d3";
 
@@ -10,6 +16,12 @@
   }
 
   let { robotXY, robotHeading, x, y }: Props = $props();
+  let position = $derived(
+    toDisplay(
+      { x: x.invert(robotXY.x), y: y.invert(robotXY.y) },
+      $coordinateSettings,
+    ),
+  );
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-2 text-sm">
@@ -20,7 +32,8 @@
     >
       <div class="font-extralight text-gray-400">X</div>
       <div class="font-medium text-gray-100">
-        {x.invert(robotXY.x).toFixed(3)}
+        {position.x.toFixed(3)}
+        {unitLabel($coordinateSettings)}
       </div>
     </div>
     <div
@@ -28,7 +41,8 @@
     >
       <div class="font-extralight text-gray-400">Y</div>
       <div class="font-medium text-gray-100">
-        {y.invert(robotXY.y).toFixed(3)}
+        {position.y.toFixed(3)}
+        {unitLabel($coordinateSettings)}
       </div>
     </div>
     <div
@@ -36,7 +50,7 @@
     >
       <div class="font-extralight text-gray-400">Heading</div>
       <div class="font-medium text-gray-100">
-        {robotHeading.toFixed(0) === "-0" ? "0" : -robotHeading.toFixed(0)}&deg;
+        {displayHeading(-robotHeading, $coordinateSettings).toFixed(0)}&deg;
       </div>
     </div>
   </div>

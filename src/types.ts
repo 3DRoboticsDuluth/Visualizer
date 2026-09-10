@@ -1,3 +1,5 @@
+import type { CoordinateSettings } from "./utils/coordinates";
+
 // Exported type definitions for use in Svelte and TS modules
 
 export interface BasePoint {
@@ -110,7 +112,7 @@ export type SequenceWaitItem = {
 
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
 
-export interface Settings {
+export interface Settings extends CoordinateSettings {
   xVelocity: number;
   yVelocity: number;
   aVelocity: number;

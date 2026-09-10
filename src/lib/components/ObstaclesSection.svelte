@@ -1,8 +1,14 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import {
+    gridSpacing,
+    inchesPerUnit,
+    unitLabel,
+  } from "../../utils/coordinates";
+  import CoordinateField from "./CoordinateField.svelte";
   import type { Shape } from "../../types";
   import { createTriangle } from "../../utils";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
-  import { FIELD_SIZE } from "../../config";
 
   const colorChoices = [
     { label: "Red", color: "#dc2626", fill: "#ff6b6b" },
@@ -30,7 +36,9 @@
   }: Props = $props();
 
   let snapToGridTitle = $derived(
-    $snapToGrid && $showGrid ? `Snapping to ${$gridSize} grid` : "No snapping",
+    $snapToGrid && $showGrid
+      ? `Snapping to ${Number((gridSpacing($gridSize, $coordinateSettings) / inchesPerUnit($coordinateSettings)).toFixed(3))} ${unitLabel($coordinateSettings)} grid`
+      : "No snapping",
   );
 
   function toggleObstacle(index: number) {
@@ -178,24 +186,28 @@
             <div class={`font-extralight ${compact ? "text-xs" : "text-sm"}`}>
               X:
             </div>
-            <input
-              bind:value={vertex.x}
+            <CoordinateField
+              point={vertex}
+              onpoint={(next) => Object.assign(vertex, next)}
+              axis="x"
               type="number"
-              min="0"
-              max={FIELD_SIZE}
-              step={$snapToGrid && $showGrid ? $gridSize : 0.1}
+              step={$snapToGrid && $showGrid
+                ? gridSpacing($gridSize, $coordinateSettings)
+                : 0.1}
               title={snapToGridTitle}
               class={`pl-1.5 bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none ${compact ? "w-16 py-0.5 text-xs" : "w-24 py-1 text-sm"}`}
             />
             <div class={`font-extralight ${compact ? "text-xs" : "text-sm"}`}>
               Y:
             </div>
-            <input
-              bind:value={vertex.y}
+            <CoordinateField
+              point={vertex}
+              onpoint={(next) => Object.assign(vertex, next)}
+              axis="y"
               type="number"
-              min="0"
-              max={FIELD_SIZE}
-              step={$snapToGrid && $showGrid ? $gridSize : 0.1}
+              step={$snapToGrid && $showGrid
+                ? gridSpacing($gridSize, $coordinateSettings)
+                : 0.1}
               class={`pl-1.5 bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none ${compact ? "w-16 py-0.5 text-xs" : "w-24 py-1 text-sm"}`}
               title={snapToGridTitle}
             />

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { unitLabel } from "../../utils/coordinates";
   import { run } from "svelte/legacy";
 
   import type { StartPose, Path, SequenceItem } from "../../types";
@@ -80,7 +82,11 @@
         );
         currentLanguage = kotlin;
       } else if (format === "points") {
-        exportedCode = generatePointsArray(startPoint, lines);
+        exportedCode = generatePointsArray(
+          startPoint,
+          lines,
+          $coordinateSettings,
+        );
         currentLanguage = plaintext;
       } else if (format === "sequential") {
         // Initialize the editable class name from the current file path
@@ -263,6 +269,11 @@
     </div>
   </div>
 
+  <p class="text-sm text-gray-400 mb-2">
+    {exportFormat === "points"
+      ? `Coordinates: ${$coordinateSettings.coordinateSystem ?? "pedro"} / ${unitLabel($coordinateSettings)}`
+      : "Generated robot code always uses Pedro coordinates and inches, preserving the planned path."}
+  </p>
   <div class="relative w-full flex-1 overflow-auto">
     <Highlight language={currentLanguage} code={exportedCode} class="w-full" />
     <button

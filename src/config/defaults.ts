@@ -1,5 +1,6 @@
 import type { StartPose, AtomicPath, Shape, Settings } from "../types";
 import { makePathId } from "../utils/ids";
+import { DEFAULT_TILE_SIZE, FIELD_INCHES } from "../utils/coordinates";
 
 /**
  * Default robot dimensions
@@ -12,7 +13,7 @@ export const DEFAULT_ROBOT_HEIGHT = 16;
  */
 export const POINT_RADIUS = 1.15;
 export const LINE_WIDTH = 0.57;
-export const FIELD_SIZE = 141.5;
+export const FIELD_SIZE = FIELD_INCHES;
 
 /**
  * Available field maps
@@ -28,6 +29,9 @@ export const AVAILABLE_FIELD_MAPS = [
  * Default settings
  */
 export const DEFAULT_SETTINGS: Settings = {
+  coordinateSystem: "pedro",
+  distanceUnit: "inches",
+  tileSize: DEFAULT_TILE_SIZE,
   xVelocity: 75,
   yVelocity: 65,
   aVelocity: Math.PI,

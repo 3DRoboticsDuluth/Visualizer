@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { formatPoint, unitLabel } from "../../utils/coordinates";
   import type { AtomicPath, BasePoint, Settings } from "../../types";
   import StatCell from "./ui/StatCell.svelte";
   import SelectedPointEditor from "./SelectedPointEditor.svelte";
@@ -117,9 +119,8 @@
         />
       </div>
       <StatCell label="Endpoint">
-        {selectedLine.endPoint.x.toFixed(1)}, {selectedLine.endPoint.y.toFixed(
-          1,
-        )}
+        {formatPoint(selectedLine.endPoint, $coordinateSettings)}
+        {unitLabel($coordinateSettings)}
       </StatCell>
       <StatCell label="Control Points">
         {selectedLine.controlPoints.length}

@@ -1,1 +1,41 @@
 # Pedro Pathing Visualizer
+
+This 3D Robotics Duluth fork adds selectable coordinate frames and tile units to the upstream Pedro Pathing Visualizer.
+
+## Plan in FTC Coordinates
+
+Open **Settings → Coordinates and Units**. Select Pedro, FTC, or FTC Inverted, then Inches or Tiles. The field image remains fixed:
+
+| Frame        | Origin      | Positive X | Positive Y | Zero Heading |
+| ------------ | ----------- | ---------- | ---------- | ------------ |
+| Pedro        | Bottom-left | Right      | Up         | Right        |
+| FTC          | Center      | Down       | Right      | Down         |
+| FTC Inverted | Center      | Up         | Left       | Up           |
+
+Headings are counterclockwise-positive degrees. Choose the frame appropriate to your field orientation; the visualizer does not infer alliance or season orientation.
+
+**Inches per Tile defaults to 23.5 and is editable.** This is the seam-center spacing, not a claim that six tiles span the full outside field boundary. The field remains 141.5 inches square, with its center at 70.75 inches. Adjust tile size after measuring your field if necessary.
+
+Point editors, heading editors, robot position, grid/snapping, ruler, and path length follow the selected frame or units as applicable. Robot dimensions and motion-parameter settings remain in inches. Switching frame, units, or tile size changes the displayed numbers, never the existing physical path. Saved `.pp` projects retain these preferences alongside canonical Pedro-inch geometry.
+
+## Export Safely
+
+The points-array export uses the selected coordinates and distance units. Java and Kotlin robot-code exports intentionally remain in **Pedro coordinates and inches**, so changing display settings does not silently alter generated robot motion. Do not treat a tiles/FTC points array as Pedro-inch coordinates without conversion.
+
+The centered frames use half this visualizer's 141.5-inch field, not the 72-inch offset used by some Pedro FTC-coordinate conversions. If using those SDK conversion helpers directly, reconcile the field-center convention rather than copying displayed coordinates without checking it. Test start pose, axes, heading, and a short path on the physical robot before autonomous use.
+
+## Develop and Verify
+
+Use a current Node.js release compatible with Vite (validated with Node 24) and pnpm.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm test
+pnpm check
+pnpm build
+pnpm dev
+```
+
+Regression tests cover all frame/unit round trips, custom tile sizes, heading conversion, point editing, centered snapping, export, and project persistence. A useful manual check is an FTC path from `(0, 0)` to `(1, 0)` in tiles: it should extend downward by 23.5 inches. Switching to Pedro/inches should show `(70.75, 70.75)` to `(70.75, 47.25)` without moving that path.
+
+Upstream: [Pedro-Pathing/Visualizer](https://github.com/Pedro-Pathing/Visualizer). Existing upstream licensing is retained.

@@ -1,5 +1,12 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
+  import {
+    toDisplay,
+    gridOrigin,
+    gridSpacing,
+    unitLabel,
+  } from "./utils/coordinates";
+  import { coordinateSettings } from "./stores";
 
   import type {
     Path,
@@ -189,6 +196,13 @@
   let cancelGifExport = $state(false);
   // Path data
   let settings: Settings = $state({ ...DEFAULT_SETTINGS });
+  $effect(() => {
+    coordinateSettings.set({
+      coordinateSystem: settings.coordinateSystem,
+      distanceUnit: settings.distanceUnit,
+      tileSize: settings.tileSize,
+    });
+  });
   let startPoint: StartPose = $state(getDefaultStartPoint());
   const initialLines = normalizePaths(getDefaultPaths());
   let lines: Path[] = $state(initialLines);
@@ -527,7 +541,8 @@
     return {
       snapToGrid: $snapToGrid,
       showGrid: $showGrid,
-      gridSize: $gridSize,
+      gridSize: gridSpacing($gridSize, settings),
+      origin: gridOrigin(settings),
     };
   }
 
@@ -2183,8 +2198,8 @@
           id: node.id,
           name: node.name || `Path ${segmentNumber}`,
           kind: "atomic" as const,
-          x: formatPathPoint(node.endPoint.x),
-          y: formatPathPoint(node.endPoint.y),
+          x: formatPathPoint(toDisplay(node.endPoint, settings).x),
+          y: formatPathPoint(toDisplay(node.endPoint, settings).y),
         };
       });
 
@@ -2883,7 +2898,8 @@
           </div>
         </div>
         <div class="module-footer">
-          Field · {FIELD_SIZE}&quot; x {FIELD_SIZE}&quot;
+          Field · {FIELD_SIZE}&quot; x {FIELD_SIZE}&quot; · {settings.coordinateSystem ??
+            "pedro"} / {unitLabel(settings)}
         </div>
       </main>
 

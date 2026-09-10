@@ -1,4 +1,7 @@
 <script lang="ts">
+  import CoordinateField from "./CoordinateField.svelte";
+  import { coordinateSettings } from "../../stores";
+  import { displayHeading, storedHeading } from "../../utils/coordinates";
   import type {
     PiecewiseHeadingInterpolation,
     PiecewiseHeadingInterpolationType,
@@ -446,8 +449,15 @@
                 step="1"
                 class={FIELD_CLASS}
                 value={segment.continueFromPrevious
-                  ? (linkedStart?.toFixed(1) ?? "")
-                  : (segment.parameters?.startDeg ?? 0)}
+                  ? linkedStart === null
+                    ? ""
+                    : displayHeading(linkedStart, $coordinateSettings).toFixed(
+                        1,
+                      )
+                  : displayHeading(
+                      segment.parameters?.startDeg ?? 0,
+                      $coordinateSettings,
+                    )}
                 readonly={segment.continueFromPrevious}
                 placeholder={segment.continueFromPrevious
                   ? "follows the path"
@@ -459,8 +469,9 @@
                 onchange={(event) =>
                   updateSegment(index, {
                     parameters: {
-                      startDeg: Number(
-                        (event.currentTarget as HTMLInputElement).value,
+                      startDeg: storedHeading(
+                        Number((event.currentTarget as HTMLInputElement).value),
+                        $coordinateSettings,
                       ),
                     },
                   })}
@@ -472,13 +483,17 @@
                 type="number"
                 step="1"
                 class={FIELD_CLASS}
-                value={segment.parameters?.endDeg ?? 0}
+                value={displayHeading(
+                  segment.parameters?.endDeg ?? 0,
+                  $coordinateSettings,
+                )}
                 disabled={locked}
                 onchange={(event) =>
                   updateSegment(index, {
                     parameters: {
-                      endDeg: Number(
-                        (event.currentTarget as HTMLInputElement).value,
+                      endDeg: storedHeading(
+                        Number((event.currentTarget as HTMLInputElement).value),
+                        $coordinateSettings,
                       ),
                     },
                   })}
@@ -494,8 +509,15 @@
                 step="1"
                 class={FIELD_CLASS}
                 value={segment.continueFromPrevious
-                  ? (linkedStart?.toFixed(1) ?? "")
-                  : (segment.parameters?.degrees ?? 0)}
+                  ? linkedStart === null
+                    ? ""
+                    : displayHeading(linkedStart, $coordinateSettings).toFixed(
+                        1,
+                      )
+                  : displayHeading(
+                      segment.parameters?.degrees ?? 0,
+                      $coordinateSettings,
+                    )}
                 readonly={segment.continueFromPrevious}
                 placeholder={segment.continueFromPrevious
                   ? "follows the path"
@@ -507,8 +529,9 @@
                 onchange={(event) =>
                   updateSegment(index, {
                     parameters: {
-                      degrees: Number(
-                        (event.currentTarget as HTMLInputElement).value,
+                      degrees: storedHeading(
+                        Number((event.currentTarget as HTMLInputElement).value),
+                        $coordinateSettings,
                       ),
                     },
                   })}
@@ -519,44 +542,24 @@
           <div class="mt-2 grid gap-2 sm:grid-cols-2">
             <label class="space-y-1">
               <div class={LABEL_CLASS}>Target X</div>
-              <input
-                type="number"
-                step="0.1"
+              <CoordinateField
+                axis="x"
+                point={segment.parameters?.point ?? { x: 0, y: 0 }}
                 class={FIELD_CLASS}
-                value={segment.parameters?.point?.x ?? 0}
                 disabled={locked}
-                onchange={(event) =>
-                  updateSegment(index, {
-                    parameters: {
-                      point: {
-                        x: Number(
-                          (event.currentTarget as HTMLInputElement).value,
-                        ),
-                        y: segment.parameters?.point?.y ?? 0,
-                      },
-                    },
-                  })}
+                onpoint={(point) =>
+                  updateSegment(index, { parameters: { point } })}
               />
             </label>
             <label class="space-y-1">
               <div class={LABEL_CLASS}>Target Y</div>
-              <input
-                type="number"
-                step="0.1"
+              <CoordinateField
+                axis="x"
+                point={segment.parameters?.point ?? { x: 0, y: 0 }}
                 class={FIELD_CLASS}
-                value={segment.parameters?.point?.y ?? 0}
                 disabled={locked}
-                onchange={(event) =>
-                  updateSegment(index, {
-                    parameters: {
-                      point: {
-                        x: segment.parameters?.point?.x ?? 0,
-                        y: Number(
-                          (event.currentTarget as HTMLInputElement).value,
-                        ),
-                      },
-                    },
-                  })}
+                onpoint={(point) =>
+                  updateSegment(index, { parameters: { point } })}
               />
             </label>
           </div>

@@ -1,8 +1,14 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import {
+    displayHeading,
+    storedHeading,
+    unitLabel,
+  } from "../../utils/coordinates";
+  import CoordinateField from "./CoordinateField.svelte";
   import { stopPropagation } from "svelte/legacy";
 
   import type { StartPose } from "../../types";
-  import { FIELD_SIZE } from "../../config";
 
   interface Props {
     startPoint: StartPose;
@@ -77,11 +83,10 @@
     </label>
 
     <label class="flex flex-col gap-1 text-xs">
-      <span class="font-extralight">X</span>
-      <input
-        bind:value={startPoint.x}
-        min="0"
-        max={FIELD_SIZE}
+      <span class="font-extralight">X ({unitLabel($coordinateSettings)})</span>
+      <CoordinateField
+        bind:point={startPoint}
+        axis="x"
         type="number"
         class="w-full rounded-md border-[0.5px] bg-neutral-100 px-2 py-1 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950"
         step="0.1"
@@ -90,15 +95,34 @@
     </label>
 
     <label class="flex flex-col gap-1 text-xs">
-      <span class="font-extralight">Y</span>
-      <input
-        bind:value={startPoint.y}
-        min="0"
-        max={FIELD_SIZE}
+      <span class="font-extralight">Y ({unitLabel($coordinateSettings)})</span>
+      <CoordinateField
+        bind:point={startPoint}
+        axis="y"
         type="number"
         class="w-full rounded-md border-[0.5px] bg-neutral-100 px-2 py-1 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950"
         step="0.1"
         disabled={startPoint.locked}
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs">
+      <span>Heading (deg)</span>
+      <input
+        type="number"
+        step="1"
+        class="w-full rounded-md bg-neutral-950 px-2 py-1"
+        value={displayHeading(startPoint.headingDeg, $coordinateSettings)}
+        disabled={startPoint.locked}
+        oninput={(event) => {
+          if (Number.isFinite(event.currentTarget.valueAsNumber))
+            startPoint = {
+              ...startPoint,
+              headingDeg: storedHeading(
+                event.currentTarget.valueAsNumber,
+                $coordinateSettings,
+              ),
+            };
+        }}
       />
     </label>
   </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { displayHeading, storedHeading } from "../../utils/coordinates";
   import { createEventDispatcher } from "svelte";
   import PiecewiseHeadingEditor from "./PiecewiseHeadingEditor.svelte";
   import { createDefaultPiecewiseHeadingInterpolation } from "../../utils/headingInterpolation";
@@ -34,7 +36,7 @@
 
     // Initialize missing properties based on the selected heading type
     if (next === "constant" && draft.degrees === undefined) {
-      draft.degrees = 0;
+      draft.degrees = storedHeading(0, $coordinateSettings);
     } else if (next === "linear") {
       if (draft.startDeg === undefined) draft.startDeg = 0;
       if (draft.endDeg === undefined) draft.endDeg = 0;
@@ -84,9 +86,17 @@ With piecewise heading, the line is split into stretches that each use their own
       class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
       step="1"
       type="number"
-      min="-180"
-      max="180"
-      bind:value={heading.startDeg}
+      bind:value={
+        () =>
+          displayHeading(
+            (heading as Extract<Heading, { type: "linear" }>).startDeg,
+            $coordinateSettings,
+          ),
+        (value) => {
+          (heading as Extract<Heading, { type: "linear" }>).startDeg =
+            storedHeading(value ?? 0, $coordinateSettings);
+        }
+      }
       oninput={() => dispatch("change")}
       onblur={() => dispatch("commit")}
       title="The heading the robot starts this line at (in degrees)"
@@ -98,9 +108,17 @@ With piecewise heading, the line is split into stretches that each use their own
       class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
       step="1"
       type="number"
-      min="-180"
-      max="180"
-      bind:value={heading.endDeg}
+      bind:value={
+        () =>
+          displayHeading(
+            (heading as Extract<Heading, { type: "linear" }>).endDeg,
+            $coordinateSettings,
+          ),
+        (value) => {
+          (heading as Extract<Heading, { type: "linear" }>).endDeg =
+            storedHeading(value ?? 0, $coordinateSettings);
+        }
+      }
       oninput={() => dispatch("change")}
       onblur={() => dispatch("commit")}
       title="The heading the robot ends this line at (in degrees)"
@@ -114,17 +132,15 @@ With piecewise heading, the line is split into stretches that each use their own
       class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
       step="1"
       type="number"
-      min="-180"
-      max="180"
-      value={heading.degrees || 0}
+      value={displayHeading(heading.degrees || 0, $coordinateSettings)}
       oninput={(e) => {
         const value = parseFloat(e.currentTarget.value);
         const draft: HeadingDraft = heading;
         if (!isNaN(value)) {
-          draft.degrees = value;
+          draft.degrees = storedHeading(value, $coordinateSettings);
         } else {
           // If empty or invalid, set to 0
-          draft.degrees = 0;
+          draft.degrees = storedHeading(0, $coordinateSettings);
           e.currentTarget.value = "0";
         }
         dispatch("change");
@@ -135,7 +151,7 @@ With piecewise heading, the line is split into stretches that each use their own
           isNaN(parseFloat(e.currentTarget.value))
         ) {
           const draft: HeadingDraft = heading;
-          draft.degrees = 0;
+          draft.degrees = storedHeading(0, $coordinateSettings);
           e.currentTarget.value = "0";
         }
         dispatch("commit");

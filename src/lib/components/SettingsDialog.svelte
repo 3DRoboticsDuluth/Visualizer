@@ -140,6 +140,55 @@
     </button>
   </div>
 
+  <div class="console-section w-full mb-4 p-3 space-y-3">
+    <h3 class="font-semibold">Coordinates and Units</h3>
+    <label class="block"
+      >Coordinate System
+      <select
+        class="ml-2 rounded bg-neutral-950 p-1"
+        bind:value={settings.coordinateSystem}
+      >
+        <option value="pedro">Pedro</option>
+        <option value="ftc">FTC</option>
+        <option value="ftc-inverted">FTC Inverted</option>
+      </select>
+    </label>
+    <p class="text-sm text-gray-400">
+      Field image axes: Pedro +X right, +Y up. FTC +X down, +Y right. FTC
+      Inverted +X up, +Y left. FTC origins are at field center.
+    </p>
+    <label class="block"
+      >Distance Units
+      <select
+        class="ml-2 rounded bg-neutral-950 p-1"
+        bind:value={settings.distanceUnit}
+      >
+        <option value="inches">Inches</option>
+        <option value="tiles">Tiles</option>
+      </select>
+    </label>
+    <label class="block"
+      >Inches per Tile
+      <input
+        class="ml-2 w-24 rounded bg-neutral-950 p-1"
+        type="number"
+        value={settings.tileSize}
+        min="0.01"
+        step="0.01"
+        onchange={(event) => {
+          const value = event.currentTarget.valueAsNumber;
+          if (Number.isFinite(value) && value > 0) settings.tileSize = value;
+          else event.currentTarget.value = String(settings.tileSize);
+        }}
+      />
+    </label>
+    <p class="text-sm text-gray-400">
+      Tile size defaults to 23.5 inches. The field stays 141.5 inches; changing
+      units or tile size preserves the physical path. Robot and motion settings
+      below remain in inches.
+    </p>
+  </div>
+
   <!-- Warning Banner -->
   <div class="console-section w-full mb-4 p-3">
     <div class="flex items-start gap-2">

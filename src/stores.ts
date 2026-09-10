@@ -1,4 +1,7 @@
 import { writable } from "svelte/store";
+import type { CoordinateSettings } from "./utils/coordinates";
+
+export const coordinateSettings = writable<CoordinateSettings>({});
 
 // Math tools stores
 export const showRuler = writable(false);
@@ -12,14 +15,14 @@ function createGridSizeStore() {
     subscribe,
     set: (value: number) => {
       const n = Number(value) || 0;
-      const clamped = Math.max(0, Math.min(12, n));
+      const clamped = Math.max(0, Math.min(24, n));
       set(clamped);
     },
     update: (fn: (v: number) => number) =>
       update((curr) => {
         const next = fn(curr);
         const n = Number(next) || 0;
-        return Math.max(0, Math.min(12, n));
+        return Math.max(0, Math.min(24, n));
       }),
   };
 }

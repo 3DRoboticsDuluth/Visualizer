@@ -80,13 +80,14 @@ export interface GridSnapOptions {
   snapToGrid: boolean;
   showGrid: boolean;
   gridSize: number;
+  origin?: number;
 }
 
 /** Snap to the nearest grid intersection and clamp into the field. */
 export function snapPointToGrid(
   inchX: number,
   inchY: number,
-  { snapToGrid, showGrid, gridSize }: GridSnapOptions,
+  { snapToGrid, showGrid, gridSize, origin = 0 }: GridSnapOptions,
 ): BasePoint {
   if (!snapToGrid || !showGrid || gridSize <= 0) {
     return { x: inchX, y: inchY };
@@ -95,11 +96,17 @@ export function snapPointToGrid(
   return {
     x: Math.max(
       0,
-      Math.min(FIELD_SIZE, Math.round(inchX / gridSize) * gridSize),
+      Math.min(
+        FIELD_SIZE,
+        origin + Math.round((inchX - origin) / gridSize) * gridSize,
+      ),
     ),
     y: Math.max(
       0,
-      Math.min(FIELD_SIZE, Math.round(inchY / gridSize) * gridSize),
+      Math.min(
+        FIELD_SIZE,
+        origin + Math.round((inchY - origin) / gridSize) * gridSize,
+      ),
     ),
   };
 }

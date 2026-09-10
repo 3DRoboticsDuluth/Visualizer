@@ -1,4 +1,10 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import {
+    gridSpacing,
+    inchesPerUnit,
+    unitLabel,
+  } from "../../utils/coordinates";
   import {
     snapToGrid,
     showGrid,
@@ -13,6 +19,10 @@
   }
 
   let { selectedGridSize, onCycleGridSize }: Props = $props();
+
+  let gridLabel = $derived(
+    `${Number((gridSpacing(selectedGridSize, $coordinateSettings) / inchesPerUnit($coordinateSettings)).toFixed(3))} ${unitLabel($coordinateSettings)}`,
+  );
 
   const SVG_PROPS = {
     xmlns: "http://www.w3.org/2000/svg",
@@ -58,9 +68,7 @@
 
 <!-- Grid toggle -->
 <button
-  title={$showGrid
-    ? `Grid: ${selectedGridSize}" (click to cycle)`
-    : "Toggle Grid"}
+  title={$showGrid ? `Grid: ${gridLabel} (click to cycle)` : "Toggle Grid"}
   onclick={onCycleGridSize}
   class:text-blue-500={$showGrid}
   class="console-icon-button relative"
@@ -83,7 +91,7 @@
     <span
       class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap"
     >
-      {selectedGridSize}"
+      {gridLabel}
     </span>
   {/if}
 </button>

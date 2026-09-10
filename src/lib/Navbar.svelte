@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../stores";
+  import { inchesPerUnit, unitLabel } from "../utils/coordinates";
   import { run } from "svelte/legacy";
 
   import type {
@@ -112,7 +114,7 @@
   let exportButtonRef = $state<HTMLElement>();
 
   let selectedGridSize = $state(12);
-  const gridSizeOptions = [0, 1, 3, 6, 12];
+  const gridSizeOptions = [0, 1, 3, 6, 12, 24];
 
   // Ensure File Manager and Export dialog are mutually exclusive
   run(() => {
@@ -338,7 +340,7 @@
         target="_blank"
         rel="noreferrer"
         title="GitHub Repo"
-        href="https://github.com/Pedro-Pathing/Visualizer"
+        href="https://github.com/3DRoboticsDuluth/Visualizer"
         class="inline-flex size-8 items-center justify-center rounded-lg p-1 text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-white"
       >
         <svg
@@ -382,7 +384,11 @@
           {/if}
         </div>
         <div class="text-neutral-500 dark:text-neutral-400">
-          ({(timePrediction?.totalDistance ?? 0).toFixed(0)} in)
+          ({(
+            (timePrediction?.totalDistance ?? 0) /
+            inchesPerUnit($coordinateSettings)
+          ).toFixed(2)}
+          {unitLabel($coordinateSettings)})
         </div>
       </div>
 
